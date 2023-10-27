@@ -325,4 +325,10 @@ async def upload_file_(client, message):
     await app.send_message(message.from_user.id, text, reply_markup=back_btn)
 
 
+@app.on_message(conversation(conversation_state, None))
+async def default(client, message):
+    await app.send_message(message.from_user.id, start_text.format(message.from_user.first_name),
+                           reply_markup=start_btn)
+
+
 app.run()
