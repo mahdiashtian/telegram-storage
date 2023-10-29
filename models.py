@@ -17,6 +17,7 @@ class User(Base):
     phone_number: Mapped[str] = mapped_column(nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(), default=datetime.utcnow)
     is_superuser: Mapped[bool] = mapped_column(default=False)
+    is_staff: Mapped[bool] = mapped_column(default=False)
 
     files: Mapped["File"] = relationship(back_populates="owner")
 
