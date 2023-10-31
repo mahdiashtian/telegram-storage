@@ -2,7 +2,7 @@
 import logging
 import re
 from enum import Enum, auto
-
+import asyncio
 from decouple import config
 from pyrogram import Client, filters
 from pyrogram import enums
@@ -108,13 +108,16 @@ async def start(client, message):
 @app.on_message(filters.text & filters.regex("^/start get_*"))
 @check_joined
 async def get_file(client, message):
+    conversation_state[message.from_user.id] = None
     code = message.text.replace("/start get_", "")
     file = read_file_from_db(db, code)
     if file is None:
         await app.send_message(message.from_user.id, "❌ فایل یافت نشد !")
 
     elif file.password is None or file.owner_id == message.from_user.id:
-        await send_file(app, client, message, file, db)
+        file = await send_file(app, client, message, file, db)
+        await asyncio.sleep(30)
+        await app.delete_messages(message.chat.id, file.message_id)
     else:
         conversation_object[message.from_user.id] = file
         conversation_state[message.from_user.id] = State.USER_SEND_PASSWORD_FOR_GET_FILE
@@ -405,11 +408,13 @@ async def get_file_for_tracking(client, message):
 async def get_file_has_password(client, message):
     file = conversation_object.get(message.from_user.id, None)
     if file.password == message.text:
-        await send_file(app, client, message, file, db)
+        file = await send_file(app, client, message, file, db)
         sender = message.from_user
         await app.send_message(message.from_user.id, start_text.format(sender.first_name), reply_markup=start_btn)
         conversation_state[message.from_user.id] = None
         conversation_object[message.from_user.id] = None
+        await asyncio.sleep(30)
+        await app.delete_messages(message.chat.id, file.message_id)
 
     else:
         await app.send_message(message.from_user.id, "❌ پسورد اشتباه است !", reply_markup=back_btn)
