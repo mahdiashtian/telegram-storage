@@ -108,6 +108,11 @@ async def start(client, message):
 @app.on_message(filters.text & filters.regex("^/start get_*"))
 @check_joined
 async def get_file(client, message):
+    if read_user_from_db(db, message.from_user.id) is None:
+        user = {
+            "userid": message.from_user.id,
+        }
+        create_user_from_db(db, user)
     conversation_state[message.from_user.id] = None
     code = message.text.replace("/start get_", "")
     file = read_file_from_db(db, code)
