@@ -1,14 +1,21 @@
+import datetime
+import os
 from typing import Optional, List, Type
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from models import User, File
+from database import DB_NAME, DB_USER, DB_HOST
+from models import User, File, Channel
 
 
-def read_users(db: Session) -> List[Type[User]]:
+def read_users(db: Session, is_admin=False) -> List[Type[User]]:
     query = db.query(User)
 
-    db_users = query.all()
+    if is_admin:
+        db_users = query.filter(or_(User.is_superuser == True, User.is_staff == True)).all()
+    else:
+        db_users = query.all()
     db_users.sort(key=lambda x: x.id)
 
     return db_users
@@ -53,3 +60,48 @@ def read_files_from_db(db: Session, code: int = None, userid: int = None) -> Lis
 def read_file_from_db(db: Session, code: int = None, userid: int = None) -> Optional[Type[File]]:
     obj = read_files_from_db(db, code, userid)
     return obj[0] if obj else None
+
+
+def change_admin_from_db(db: Session, userid: int, is_superuser: bool = None, is_staff: bool = None) -> bool:
+    db_user = read_user_from_db(db, userid)
+    if db_user:
+        if is_superuser is not None:
+            db_user.is_superuser = is_superuser
+        if is_staff is not None:
+            db_user.is_staff = is_staff
+        db.commit()
+        return True
+    return False
+
+
+def read_channels_from_db(db: Session) -> List[Type[File]]:
+    return db.query(Channel).all()
+
+
+def delete_channel_from_db(db: Session, channel_id: str) -> bool:
+    result = db.query(Channel).filter(
+        or_(Channel.channel_id == channel_id, Channel.channel_link == channel_id))
+    if result.first():
+        result.delete()
+        db.commit()
+        return True
+    return False
+
+
+def create_channel_from_db(db: Session, data: dict) -> Channel:
+    db_channel = Channel(**data)
+    db.add(db_channel)
+    db.commit()
+    db.refresh(db_channel)
+
+    return db_channel
+
+
+def create_backup():
+    time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    file_name = f"backup-{time}.sql"
+    result = os.system(f"pg_dump -U {DB_USER} -h {DB_HOST} {DB_NAME} > {file_name}")
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    if result == 0:
+        return f"{dir_path}/{file_name}"
+    return None
