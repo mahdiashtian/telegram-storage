@@ -23,7 +23,7 @@ def send_file(app, client, message, file, db, keyboard=start_btn):
     db.commit()
     caption = file.caption or ""
     caption += f"\nتعداد دانلود : {file.count}\n\n@{client.me.username}"
-
+    caption += "\n\n❌ این پیام بعد از ۳۰ ثانیه حذف می شود"
     if file.type == 'animation':
         return app.send_animation(message.chat.id, file.file_id, caption=caption,
                                   reply_markup=start_btn)
