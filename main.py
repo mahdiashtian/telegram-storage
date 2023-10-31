@@ -1,17 +1,22 @@
 # -*- coding:utf-8 -*-
 import logging
+import re
 from enum import Enum, auto
 
 from decouple import config
 from pyrogram import Client, filters
 from pyrogram import enums
+from pyrogram.errors import ChatAdminRequired
+from pyrogram.types import (InlineKeyboardMarkup)
 
 from database import SessionLocal
-from filters import conversation
-from keyboard import start_btn, back_btn
+from filters import conversation, admin_filter
+from keyboard import start_btn, back_btn, admin_btn, join_btn, channel_join_btn
 from services import read_user_from_db, create_user_from_db, create_file_from_db, delete_file_from_db, \
-    read_file_from_db, read_files_from_db
-from text import start_text, get_file_text, tracing_file_text, delete_file_text, account_text
+    read_file_from_db, read_files_from_db, change_admin_from_db, read_users, create_backup, read_channels_from_db, \
+    create_channel_from_db, delete_channel_from_db
+from text import start_text, get_file_text, tracing_file_text, delete_file_text, account_text, admin_panel_text, \
+    join_panel_text, channel_list_text, channel_add_text, need_join_text
 from utils import generate_random_text, send_file
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s ',
@@ -51,9 +56,43 @@ class State(Enum):
     USER_SEND_ID_FOR_UNSET_PASSWORD = auto()
     USER_SEND_PASSWORD_FOR_GET_FILE = auto()
     USER_SEND_ID_FILE_FOR_TRACKING = auto()
+    USER_ADMIN_PANEL = auto()
+    USER_SET_ADMIN = auto()
+    UNSER_UNSET_ADMIN = auto()
+    USER_FORWARD_MESSAGE_FOR_ALL = auto()
+    USER_JOIN_CHANNEL_PANEL = auto()
+    USER_ADD_CHANNEL = auto()
+    USER_REMOVE_CHANNEL = auto()
+
+
+def check_joined(func):
+    async def wrapper(client, message):
+        channels = read_channels_from_db(db)
+        need_join = []
+        btn = []
+        if channels:
+            for channel in channels:
+                try:
+                    member = await client.get_chat_member(channel.channel_id, message.from_user.id)
+                    if member.status.value in ["creator", "administrator", "member", "owner"]:
+                        ...
+                    else:
+                        need_join.append(channel)
+                except ChatAdminRequired:
+                    ...
+        if need_join:
+            for channel in need_join:
+                channel_info = await app.get_chat(f"{channel.channel_id}")
+                btn.append(channel_join_btn(channel_info.title, channel.channel_link))
+            await app.send_message(message.from_user.id, need_join_text, reply_markup=InlineKeyboardMarkup([btn]))
+        else:
+            await func(client, message)
+
+    return wrapper
 
 
 @app.on_message(filters.text & filters.regex("^/start$"))
+@check_joined
 async def start(client, message):
     if read_user_from_db(db, message.from_user.id) is None:
         user = {
@@ -61,12 +100,13 @@ async def start(client, message):
         }
         create_user_from_db(db, user)
 
-    sender = message.from_user
-    conversation_state[sender.id] = None
-    await app.send_message(message.from_user.id, start_text.format(sender.first_name), reply_markup=start_btn)
+    conversation_state[message.from_user.id] = None
+    await app.send_message(message.from_user.id, start_text.format(message.from_user.first_name),
+                           reply_markup=start_btn)
 
 
 @app.on_message(filters.text & filters.regex("^/start get_*"))
+@check_joined
 async def get_file(client, message):
     code = message.text.replace("/start get_", "")
     file = read_file_from_db(db, code)
@@ -81,14 +121,131 @@ async def get_file(client, message):
         await app.send_message(message.from_user.id, "🔑 لطفا پسورد فایل را ارسال کنید ...", reply_markup=back_btn)
 
 
+@app.on_message(filters.command(['admin']) & admin_filter(db))
+@check_joined
+async def admin_panel(client, message):
+    conversation_state[message.from_user.id] = State.USER_ADMIN_PANEL
+    await app.send_message(message.from_user.id,
+                           admin_panel_text.format(message.from_user.first_name),
+                           reply_markup=admin_btn)
+
+
+@app.on_message(filters.text & filters.regex("🔸 لیست کانال ها") &
+                conversation(conversation_state, State.USER_JOIN_CHANNEL_PANEL) & admin_filter(db))
+@check_joined
+async def get_channels(client, message):
+    text = "📃 لیست کانال های عضویت اجباری شما :\n"
+    channels = read_channels_from_db(db)
+    if channels:
+        for channel in channels:
+            text += channel_list_text.format(channel.channel_link, channel.channel_id)
+        await app.send_message(message.from_user.id, text, reply_markup=join_btn)
+    else:
+        await app.send_message(message.from_user.id, "❌ هیچ کانالی یافت نشد !", reply_markup=join_btn)
+
+
+@app.on_message(filters.text & filters.regex("▫️ اضافه کردن کانال") &
+                conversation(conversation_state, State.USER_JOIN_CHANNEL_PANEL) & admin_filter(db))
+@check_joined
+async def add_channel(client, message):
+    conversation_state[message.from_user.id] = State.USER_ADD_CHANNEL
+    await app.send_message(message.from_user.id, channel_add_text, reply_markup=back_btn)
+
+
+@app.on_message(filters.text & filters.regex("▪️ حذف کانال") &
+                conversation(conversation_state, State.USER_JOIN_CHANNEL_PANEL) & admin_filter(db))
+@check_joined
+async def remove_channel(client, message):
+    conversation_state[message.from_user.id] = State.USER_REMOVE_CHANNEL
+    await app.send_message(message.from_user.id, "🔗 لطفا آیدی عددی کانال را ارسال کنید ...", reply_markup=back_btn)
+
+
+@app.on_message(filters.text & filters.regex("🎯 عضویت اجباری") &
+                conversation(conversation_state, State.USER_ADMIN_PANEL) & admin_filter(db))
+@check_joined
+async def join_panel(client, message):
+    conversation_state[message.from_user.id] = State.USER_JOIN_CHANNEL_PANEL
+    await app.send_message(message.from_user.id, join_panel_text.format(message.from_user.first_name),
+                           reply_markup=join_btn)
+
+
+@app.on_message(filters.text & filters.regex("👤 افزودن ادمین") &
+                conversation(conversation_state, State.USER_ADMIN_PANEL) & admin_filter(db))
+@check_joined
+async def set_admin(client, message):
+    conversation_state[message.from_user.id] = State.USER_SET_ADMIN
+    await app.send_message(message.from_user.id, "👤 لطفا آیدی عددی ادمین جدید را ارسال کنید ...", reply_markup=back_btn)
+
+
+@app.on_message(filters.text & filters.regex("❌ حذف ادمین") &
+                conversation(conversation_state, State.USER_ADMIN_PANEL) & admin_filter(db))
+@check_joined
+async def unset_admin(client, message):
+    conversation_state[message.from_user.id] = State.UNSER_UNSET_ADMIN
+    await app.send_message(message.from_user.id, "👤 لطفا آیدی عددی ادمین را ارسال کنید ...", reply_markup=back_btn)
+
+
+@app.on_message(filters.text & filters.regex("👥 نمایش لیست ادمین ها") &
+                conversation(conversation_state, State.USER_ADMIN_PANEL) & admin_filter(db))
+@check_joined
+async def get_admins(client, message):
+    users = read_users(db, is_admin=True)
+    text = "👥 لیست ادمین ها : \n\n"
+    for user in users:
+        user_object = await app.get_users(user.userid)
+        first_name = user_object.first_name
+        last_name = user_object.last_name or ""
+        text += "👤 {} \n🆔 {} \n\n".format(first_name + last_name, user.userid)
+    await app.send_message(message.from_user.id, text, reply_markup=admin_btn)
+
+
+@app.on_message(filters.text & filters.regex("🔌بک آپ") &
+                conversation(conversation_state, State.USER_ADMIN_PANEL) & admin_filter(db))
+@check_joined
+async def backup(client, message):
+    file_path = create_backup()
+    if file_path:
+        await app.send_document(message.from_user.id, file_path, caption="📤 بک آپ ربات شما ...", reply_markup=admin_btn)
+    else:
+        await app.send_message(message.from_user.id, "❌ مشکلی در ایجاد بک آپ رخ داده است !", reply_markup=admin_btn)
+
+
+@app.on_message(filters.text & filters.regex("📈آمار") &
+                conversation(conversation_state, State.USER_ADMIN_PANEL) & admin_filter(db))
+@check_joined
+async def status(client, message):
+    users = read_users(db)
+    files = read_files_from_db(db)
+    text = "📊 آمار ربات : \n\n"
+    text += "👥 تعداد کاربران : {} \n📤 تعداد فایل های آپلود شده : {}".format(len(users), len(files))
+    await app.send_message(message.from_user.id, text, reply_markup=admin_btn)
+
+
+@app.on_message(filters.text & filters.regex("📭 فوروارد همگانی") &
+                conversation(conversation_state, State.USER_ADMIN_PANEL) & admin_filter(db))
+@check_joined
+async def forward_message_for_all(client, message):
+    conversation_state[message.from_user.id] = State.USER_FORWARD_MESSAGE_FOR_ALL
+    await app.send_message(message.from_user.id, "📭 لطفا پیام خود را ارسال کنید ...", reply_markup=back_btn)
+
+
 @app.on_message(filters.text & filters.regex("🔙 بازگشت"))
+@check_joined
 async def back(client, message):
-    conversation_state[message.from_user.id] = None
-    conversation_object[message.from_user.id] = None
-    await app.send_message(message.from_user.id, start_text, reply_markup=start_btn)
+    if conversation_state[message.from_user.id] in [State.USER_ADD_CHANNEL, State.USER_REMOVE_CHANNEL]:
+        conversation_state[message.from_user.id] = State.USER_JOIN_CHANNEL_PANEL
+        await app.send_message(message.from_user.id,
+                               join_panel_text.format(message.from_user.first_name),
+                               reply_markup=join_btn)
+
+    else:
+        conversation_state[message.from_user.id] = None
+        conversation_object[message.from_user.id] = None
+        await app.send_message(message.from_user.id, start_text, reply_markup=start_btn)
 
 
 @app.on_message(filters.text & filters.regex("🗳 آپلود فایل"))
+@check_joined
 async def upload_file(client, message):
     sender = message.from_user
     conversation_state[sender.id] = State.USER_UPLOAD_FILE
@@ -96,6 +253,7 @@ async def upload_file(client, message):
 
 
 @app.on_message(filters.text & filters.regex("🗑 حذف فایل"))
+@check_joined
 async def remove_file(client, message):
     sender = message.from_user
     conversation_state[sender.id] = State.USER_DELETE_FILE
@@ -103,6 +261,7 @@ async def remove_file(client, message):
 
 
 @app.on_message(filters.text & filters.regex("📝تنظیم کپشن"))
+@check_joined
 async def set_caption(client, message):
     sender = message.from_user
     conversation_state[sender.id] = State.USER_SEND_ID_FOR_SET_CAPTION
@@ -110,6 +269,7 @@ async def set_caption(client, message):
 
 
 @app.on_message(filters.text & filters.regex("🗞حذف کپشن"))
+@check_joined
 async def unset_caption(client, message):
     sender = message.from_user
     conversation_state[sender.id] = State.USER_SEND_ID_FOR_UNSET_CAPTION
@@ -117,6 +277,7 @@ async def unset_caption(client, message):
 
 
 @app.on_message(filters.text & filters.regex("🔐 تنظیم پسورد"))
+@check_joined
 async def set_password(client, message):
     sender = message.from_user
     conversation_state[sender.id] = State.USER_SEND_ID_FOR_SET_PASSWORD
@@ -160,6 +321,68 @@ async def account(client, message):
 @app.on_message(filters.text & filters.regex("🛠سازنده"))
 async def creator(client, message):
     await app.send_message(message.from_user.id, "👤 سازنده ربات : @Mahdiashtian", reply_markup=start_btn)
+
+
+@app.on_message(conversation(conversation_state, State.USER_ADD_CHANNEL))
+async def add_channel_(client, message):
+    text = message.text
+    pattern = r'@([^ ]+)'
+    match = re.search(pattern, text)
+    if match:
+        result = match.group(1)
+        create_channel_from_db(db, {"channel_id": result, "channel_link": f"https://t.me/{result}"})
+    else:
+        channel_link, channel_id = text.split()
+        create_channel_from_db(db, {"channel_id": channel_id, "channel_link": channel_link})
+    conversation_state[message.from_user.id] = State.USER_JOIN_CHANNEL_PANEL
+    await app.send_message(message.from_user.id, "✅ کانال با موفقیت اضافه شد !", reply_markup=join_btn)
+
+
+@app.on_message(conversation(conversation_state, State.USER_REMOVE_CHANNEL))
+async def remove_channel_(client, message):
+    text = message.text
+    channel = delete_channel_from_db(db, text)
+    if channel:
+        conversation_state[message.from_user.id] = State.USER_JOIN_CHANNEL_PANEL
+        await app.send_message(message.from_user.id, "✅ کانال با موفقیت حذف شد !", reply_markup=join_btn)
+    else:
+        await app.send_message(message.from_user.id, "❌ کانال یافت نشد !", reply_markup=back_btn)
+
+
+@app.on_message(conversation(conversation_state, State.USER_FORWARD_MESSAGE_FOR_ALL))
+async def forward_message_for_all_(client, message):
+    await app.send_message(message.from_user.id, "✅ پیام شما با موفقیت فوروارد شد !", reply_markup=admin_btn)
+    conversation_state[message.from_user.id] = State.USER_ADMIN_PANEL
+    users = read_users(db)
+    for user in users:
+        try:
+            await app.forward_messages(user.userid, message.chat.id, message.id)
+        except Exception as e:
+            print(e)
+
+
+@app.on_message(conversation(conversation_state, State.USER_SET_ADMIN))
+async def set_admin_(client, message):
+    userid = message.text
+    result = change_admin_from_db(db, userid, is_staff=True)
+    if result:
+        await app.send_message(message.from_user.id, "✅ ادمین با موفقیت افزوده شد !", reply_markup=admin_btn)
+        conversation_state[message.from_user.id] = State.USER_ADMIN_PANEL
+        conversation_object[message.from_user.id] = None
+    else:
+        await app.send_message(message.from_user.id, "❌ کاربر یافت نشد !", reply_markup=back_btn)
+
+
+@app.on_message(conversation(conversation_state, State.UNSER_UNSET_ADMIN))
+async def unset_admin_(client, message):
+    userid = message.text
+    result = change_admin_from_db(db, userid, is_staff=False)
+    if result:
+        await app.send_message(message.from_user.id, "✅ ادمین با موفقیت حذف شد !", reply_markup=admin_btn)
+        conversation_state[message.from_user.id] = State.USER_ADMIN_PANEL
+        conversation_object[message.from_user.id] = None
+    else:
+        await app.send_message(message.from_user.id, "❌ کاربر یافت نشد !", reply_markup=back_btn)
 
 
 @app.on_message(conversation(conversation_state, State.USER_SEND_ID_FILE_FOR_TRACKING))
@@ -326,9 +549,25 @@ async def upload_file_(client, message):
 
 
 @app.on_message(conversation(conversation_state, None))
-async def default(client, message):
+async def default_none(client, message):
     await app.send_message(message.from_user.id, start_text.format(message.from_user.first_name),
                            reply_markup=start_btn)
+
+
+@app.on_message(conversation(conversation_state, None))
+async def default_none(client, message):
+    await app.send_message(message.from_user.id, start_text.format(message.from_user.first_name),
+                           reply_markup=start_btn)
+
+
+@app.on_message(conversation(conversation_state, State.USER_ADMIN_PANEL))
+async def default_none(client, message):
+    await app.send_message(message.from_user.id,
+                           admin_panel_text.format(message.from_user.first_name),
+                           reply_markup=admin_btn)
+
+
+# async def check_user_joined(client, message):
 
 
 app.run()
