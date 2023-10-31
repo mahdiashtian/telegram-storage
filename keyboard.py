@@ -1,4 +1,4 @@
-from pyrogram.types import (ReplyKeyboardMarkup)
+from pyrogram.types import (ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton)
 
 start_btn = ReplyKeyboardMarkup(
     [
@@ -21,5 +21,14 @@ admin_btn = ReplyKeyboardMarkup(
         ["📭 فوروارد همگانی", "📬 پیام همگانی"],
         ["❌ حذف ادمین", "👥 نمایش لیست ادمین ها", "👤 افزودن ادمین"],
         ["📈آمار", "🔌بک آپ"]
-    ]
+    ], resize_keyboard=True
 )
+
+join_btn = ReplyKeyboardMarkup(
+    [
+        ["▪️ حذف کانال", "▫️ اضافه کردن کانال"],
+        ["🔸 لیست کانال ها"]
+    ], resize_keyboard=True
+)
+
+channel_join_btn = lambda x, y:  InlineKeyboardButton(f"{x}", url=f"{y}")
