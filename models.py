@@ -10,9 +10,8 @@ from database import Base
 
 class User(Base):
     __tablename__ = "user"
-
-    id: Mapped[int] = mapped_column(primary_key=True, index=True, unique=True)
-
+    id: Mapped[int] = mapped_column(index=True, unique=True, primary_key=True)
+    
     userid: Mapped[int] = mapped_column(BigInteger(), index=True, unique=True)
     phone_number: Mapped[str] = mapped_column(nullable=True)
     created_at: Mapped[str] = mapped_column(DateTime(), default=datetime.utcnow)
