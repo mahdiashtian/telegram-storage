@@ -9,6 +9,10 @@ from database import DB_NAME, DB_USER, DB_HOST
 from models import User, File, Channel
 
 
+def userid_list(db):
+    return [user.userid for user in db.query(User).with_entities(User.userid)]
+
+
 def read_users(db: Session, is_admin=False) -> List[Type[User]]:
     query = db.query(User)
 
