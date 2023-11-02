@@ -270,7 +270,7 @@ async def remove_file(client, message):
     await app.send_message(message.from_user.id, "🗑 لطفا کد فایل خود را ارسال کنید ...", reply_markup=back_btn)
 
 
-@app.on_message(filters.text & filters.regex("📝تنظیم کپشن"))
+@app.on_message(filters.text & filters.regex("📝 تنظیم کپشن"))
 @check_joined
 @check_user_in_db
 async def set_caption(client, message):
@@ -279,7 +279,7 @@ async def set_caption(client, message):
     await app.send_message(message.from_user.id, "📝 لطفا کد فایل خود را ارسال کنید ...", reply_markup=back_btn)
 
 
-@app.on_message(filters.text & filters.regex("🗞حذف کپشن"))
+@app.on_message(filters.text & filters.regex("🗞 حذف کپشن"))
 @check_joined
 @check_user_in_db
 async def unset_caption(client, message):
@@ -297,7 +297,7 @@ async def set_password(client, message):
     await app.send_message(message.from_user.id, "🔑 لطفا کد فایل خود را ارسال کنید ...", reply_markup=back_btn)
 
 
-@app.on_message(filters.text & filters.regex("🗝حذف پسورد"))
+@app.on_message(filters.text & filters.regex("🗝 حذف پسورد"))
 @check_joined
 @check_user_in_db
 async def unset_password(client, message):
