@@ -7,8 +7,6 @@ from enum import Enum, auto
 from decouple import config
 from pyrogram import Client, filters
 from pyrogram import enums
-from pyrogram.errors import ChatAdminRequired
-
 from pyrogram.types import (InlineKeyboardMarkup)
 
 from database import SessionLocal
@@ -102,8 +100,12 @@ def check_joined(func):
         if need_join:
             for channel in need_join:
                 channel_info = await app.get_chat(f"{channel.channel_id}")
-                btn.append(channel_join_btn(channel_info.title, channel.channel_link))
-            await app.send_message(message.from_user.id, need_join_text, reply_markup=InlineKeyboardMarkup([btn]))
+                btn.append([channel_join_btn(channel_info.title, channel.channel_link)])
+            text = message.text.split(" ")[-1]
+            if "get_" not in text:
+                text = None
+            btn.append([channel_join_btn("✅ عضو شدم", f"https://t.me/{client.me.username}?start={text}")])
+            await app.send_message(message.from_user.id, need_join_text, reply_markup=InlineKeyboardMarkup(btn))
         else:
             await func(client, message)
 
