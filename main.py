@@ -247,7 +247,7 @@ async def back(client, message):
         await app.send_message(message.from_user.id,
                                join_panel_text.format(message.from_user.first_name),
                                reply_markup=join_btn)
-
+        
     else:
         conversation_state[message.from_user.id] = None
         conversation_object[message.from_user.id] = None
@@ -341,7 +341,7 @@ async def account(client, message):
     await app.send_message(message.from_user.id, text, reply_markup=start_btn)
 
 
-@app.on_message(filters.text & filters.regex("🛠سازنده"))
+@app.on_message(filters.text & filters.regex("🛠 سازنده"))
 @check_joined
 @check_user_in_db
 async def creator(client, message):
@@ -588,9 +588,6 @@ async def default_none(client, message):
     await app.send_message(message.from_user.id,
                            admin_panel_text.format(message.from_user.first_name),
                            reply_markup=admin_btn)
-
-
-# async def check_user_joined(client, message):
 
 
 app.run()
