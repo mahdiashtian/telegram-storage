@@ -109,3 +109,14 @@ def create_backup():
     if result == 0:
         return f"{dir_path}/{file_name}"
     return None
+
+
+async def channel_list(db, app):
+    data = {}
+    channels = read_channels_from_db(db)
+    if channels:
+        for channel in channels:
+            chnnael_data = await app.get_chat(channel.channel_id)
+            data[chnnael_data.title] = channel.channel_link
+        return data
+    return 1
