@@ -14,7 +14,7 @@ from filters import conversation, admin_filter
 from keyboard import start_btn, back_btn, admin_btn, join_btn, channel_join_btn
 from services import create_user_from_db, create_file_from_db, delete_file_from_db, \
     read_file_from_db, read_files_from_db, change_admin_from_db, read_users, create_backup, read_channels_from_db, \
-    create_channel_from_db, delete_channel_from_db, userid_list
+    create_channel_from_db, delete_channel_from_db, userid_list, channel_list
 from text import start_text, get_file_text, tracing_file_text, delete_file_text, account_text, admin_panel_text, \
     join_panel_text, channel_list_text, channel_add_text, need_join_text
 from utils import generate_random_text, send_file
@@ -45,6 +45,7 @@ conversation_state = {}
 conversation_object = {}
 
 user_list = userid_list(db)
+channel_join_list = None
 
 
 class State(Enum):
@@ -84,23 +85,24 @@ def check_user_in_db(func):
 
 def check_joined(func):
     async def wrapper(client, message):
-        channels = read_channels_from_db(db)
-        need_join = []
+        global channel_join_list
+        if not channel_join_list:
+            channel_join_list = await channel_list(db, app)
+        need_join = {}
         btn = []
-        if channels:
-            for channel in channels:
+        if channel_join_list != 1:
+            for key, value in channel_join_list.items():
                 try:
-                    member = await client.get_chat_member(channel.channel_id, message.from_user.id)
+                    member = await client.get_chat_member(key, message.from_user.id)
                     if member.status.value in ["creator", "administrator", "member", "owner"]:
                         ...
                     else:
-                        need_join.append(channel)
+                        need_join[key] = value
                 except:
-                    need_join.append(channel)
+                    need_join[key] = value
         if need_join:
-            for channel in need_join:
-                channel_info = await app.get_chat(f"{channel.channel_id}")
-                btn.append([channel_join_btn(channel_info.title, channel.channel_link)])
+            for key, value in need_join.items():
+                btn.append([channel_join_btn(key, value)])
             text = message.text.split(" ")[-1]
             if "get_" not in text:
                 text = None
@@ -247,7 +249,7 @@ async def back(client, message):
         await app.send_message(message.from_user.id,
                                join_panel_text.format(message.from_user.first_name),
                                reply_markup=join_btn)
-        
+
     else:
         conversation_state[message.from_user.id] = None
         conversation_object[message.from_user.id] = None
@@ -269,7 +271,7 @@ async def upload_file(client, message):
 async def remove_file(client, message):
     sender = message.from_user
     conversation_state[sender.id] = State.USER_DELETE_FILE
-    await app.send_message(message.from_user.id, "🗑 لطفا کد فایل خود را ارسال کنید ...", reply_markup=back_btn)
+    await app.send_message(message.from_user.id, "🗑 لطفا شناسه فایل خود را ارسال کنید ...", reply_markup=back_btn)
 
 
 @app.on_message(filters.text & filters.regex("📝 تنظیم کپشن"))
@@ -278,7 +280,7 @@ async def remove_file(client, message):
 async def set_caption(client, message):
     sender = message.from_user
     conversation_state[sender.id] = State.USER_SEND_ID_FOR_SET_CAPTION
-    await app.send_message(message.from_user.id, "📝 لطفا کد فایل خود را ارسال کنید ...", reply_markup=back_btn)
+    await app.send_message(message.from_user.id, "📝 لطفا شناسه فایل خود را ارسال کنید ...", reply_markup=back_btn)
 
 
 @app.on_message(filters.text & filters.regex("🗞 حذف کپشن"))
@@ -287,7 +289,7 @@ async def set_caption(client, message):
 async def unset_caption(client, message):
     sender = message.from_user
     conversation_state[sender.id] = State.USER_SEND_ID_FOR_UNSET_CAPTION
-    await app.send_message(message.from_user.id, "📝 لطفا کد فایل خود را ارسال کنید ...", reply_markup=back_btn)
+    await app.send_message(message.from_user.id, "📝 لطفا شناسه فایل خود را ارسال کنید ...", reply_markup=back_btn)
 
 
 @app.on_message(filters.text & filters.regex("🔐 تنظیم پسورد"))
@@ -296,7 +298,7 @@ async def unset_caption(client, message):
 async def set_password(client, message):
     sender = message.from_user
     conversation_state[sender.id] = State.USER_SEND_ID_FOR_SET_PASSWORD
-    await app.send_message(message.from_user.id, "🔑 لطفا کد فایل خود را ارسال کنید ...", reply_markup=back_btn)
+    await app.send_message(message.from_user.id, "🔑 لطفا شناسه فایل خود را ارسال کنید ...", reply_markup=back_btn)
 
 
 @app.on_message(filters.text & filters.regex("🗝 حذف پسورد"))
@@ -305,16 +307,16 @@ async def set_password(client, message):
 async def unset_password(client, message):
     sender = message.from_user
     conversation_state[sender.id] = State.USER_SEND_ID_FOR_UNSET_PASSWORD
-    await app.send_message(message.from_user.id, "🔑 لطفا کد فایل خود را ارسال کنید ...", reply_markup=back_btn)
+    await app.send_message(message.from_user.id, "🔑 لطفا شناسه فایل خود را ارسال کنید ...", reply_markup=back_btn)
 
 
-@app.on_message(filters.text & filters.regex("🗂 کد پیگیری فایل"))
+@app.on_message(filters.text & filters.regex("🗂 شناسه پیگیری فایل"))
 @check_joined
 @check_user_in_db
 async def file_tracking(client, message):
     sender = message.from_user
     conversation_state[sender.id] = State.USER_SEND_ID_FILE_FOR_TRACKING
-    await app.send_message(message.from_user.id, "🗂 لطفا کد فایل خود را ارسال کنید ...", reply_markup=back_btn)
+    await app.send_message(message.from_user.id, "🗂 لطفا شناسه فایل خود را ارسال کنید ...", reply_markup=back_btn)
 
 
 @app.on_message(filters.text & filters.regex("📂 تاریخچه اپلود"))
@@ -350,6 +352,7 @@ async def creator(client, message):
 
 @app.on_message(conversation(conversation_state, State.USER_ADD_CHANNEL))
 async def add_channel_(client, message):
+    global channel_join_list
     text = message.text
     pattern = r'@([^ ]+)'
     match = re.search(pattern, text)
@@ -360,15 +363,18 @@ async def add_channel_(client, message):
         channel_link, channel_id = text.split()
         create_channel_from_db(db, {"channel_id": channel_id, "channel_link": channel_link})
     conversation_state[message.from_user.id] = State.USER_JOIN_CHANNEL_PANEL
+    channel_join_list = await channel_list(db, app)
     await app.send_message(message.from_user.id, "✅ کانال با موفقیت اضافه شد !", reply_markup=join_btn)
 
 
 @app.on_message(conversation(conversation_state, State.USER_REMOVE_CHANNEL))
 async def remove_channel_(client, message):
+    global channel_join_list
     text = message.text
     channel = delete_channel_from_db(db, text)
     if channel:
         conversation_state[message.from_user.id] = State.USER_JOIN_CHANNEL_PANEL
+        channel_join_list = await channel_list(db, app)
         await app.send_message(message.from_user.id, "✅ کانال با موفقیت حذف شد !", reply_markup=join_btn)
     else:
         await app.send_message(message.from_user.id, "❌ کانال یافت نشد !", reply_markup=back_btn)
