@@ -92,17 +92,22 @@ def check_joined(func):
         btn = []
         if channel_join_list != 1:
             for key, value in channel_join_list.items():
+
+                title = value.get('title')
+                link = value.get('link')
                 try:
                     member = await client.get_chat_member(key, message.from_user.id)
                     if member.status.value in ["creator", "administrator", "member", "owner"]:
                         ...
                     else:
-                        need_join[key] = value
+                        need_join[key] = {"title": title, "link": link}
                 except:
-                    need_join[key] = value
+                    need_join[key] = {"title": title, "link": link}
         if need_join:
             for key, value in need_join.items():
-                btn.append([channel_join_btn(key, value)])
+                title = value.get('title')
+                link = value.get('link')
+                btn.append([channel_join_btn(title, link)])
             text = message.text.split(" ")[-1]
             if "get_" not in text:
                 text = None

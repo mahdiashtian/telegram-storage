@@ -117,6 +117,6 @@ async def channel_list(db, app):
     if channels:
         for channel in channels:
             chnnael_data = await app.get_chat(channel.channel_id)
-            data[chnnael_data.title] = channel.channel_link
+            data[channel.channel_id] = {"title": chnnael_data.title, "link": channel.channel_link}
         return data
     return 1
