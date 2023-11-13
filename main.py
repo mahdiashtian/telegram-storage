@@ -3,7 +3,7 @@ import asyncio
 import logging
 import re
 from enum import Enum, auto
-
+import uvloop
 from decouple import config
 from pyrogram import Client, filters
 from pyrogram import enums
@@ -18,7 +18,6 @@ from services import create_user_from_db, create_file_from_db, delete_file_from_
 from text import start_text, get_file_text, tracing_file_text, delete_file_text, account_text, admin_panel_text, \
     join_panel_text, channel_list_text, channel_add_text, need_join_text
 from utils import generate_random_text, send_file
-import time
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s ',
                     level=logging.INFO)
@@ -31,6 +30,8 @@ api_id = config("API_ID")
 api_hash = config("API_HASH")
 
 bot_token = config("BOT_TOKEN")
+
+uvloop.install()
 
 app = Client(
     'mahdi',
@@ -71,7 +72,6 @@ class State(Enum):
 
 def check_user_in_db(func):
     async def wrapper(client, message):
-        start = time.time()
         global user_list
         if message.from_user.id not in user_list:
             user = {
@@ -80,8 +80,6 @@ def check_user_in_db(func):
             create_user_from_db(db, user)
 
             user_list = userid_list(db)
-        stop = time.time()
-        print(f"check_user_in_db : {stop - start}")
         await func(client, message)
 
     return wrapper
@@ -89,7 +87,6 @@ def check_user_in_db(func):
 
 def check_joined(func):
     async def wrapper(client, message):
-        start = time.time()
         global channel_join_list
         if not channel_join_list:
             channel_join_list = await channel_list(db, app)
@@ -118,11 +115,7 @@ def check_joined(func):
                 text = None
             btn.append([channel_join_btn("✅ عضو شدم", f"https://t.me/{client.me.username}?start={text}")])
             await app.send_message(message.from_user.id, need_join_text, reply_markup=InlineKeyboardMarkup(btn))
-            stop = time.time()
-            print("need to join", stop - start)
         else:
-            stop = time.time()
-            print("no need to join", stop - start)
             await func(client, message)
 
     return wrapper
@@ -144,7 +137,6 @@ async def get_file(client, message):
     conversation_state[message.from_user.id] = None
     code = message.text.replace("/start get_", "")
     file = read_file_from_db(db, code)
-
     if file is None:
         await app.send_message(message.from_user.id, "❌ فایل یافت نشد !")
 
@@ -152,7 +144,6 @@ async def get_file(client, message):
         file = await send_file(app, client, message, file, db)
         await asyncio.sleep(30)
         await app.delete_messages(message.chat.id, file.id)
-
     else:
         conversation_object[message.from_user.id] = file
         conversation_state[message.from_user.id] = State.USER_SEND_PASSWORD_FOR_GET_FILE
