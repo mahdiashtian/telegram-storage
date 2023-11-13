@@ -369,7 +369,7 @@ async def account(client, message):
 @check_joined
 @check_user_in_db
 async def creator(client, message):
-    await app.send_message(message.from_user.id, "👤 سازنده ربات : @Mahdiashtian", reply_markup=start_btn)
+    await app.send_message(message.from_user.id, "👤 سازنده ربات : @", reply_markup=start_btn)
 
 
 @app.on_message(conversation(conversation_state, State.USER_ADD_CHANNEL))
