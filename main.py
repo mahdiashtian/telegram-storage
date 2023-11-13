@@ -2,7 +2,9 @@
 import asyncio
 import logging
 import re
+import time
 from enum import Enum, auto
+
 import uvloop
 from decouple import config
 from pyrogram import Client, filters
@@ -70,6 +72,17 @@ class State(Enum):
     USER_REMOVE_CHANNEL = auto()
 
 
+def timing_decorator(func):
+    async def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = await func(*args, **kwargs)
+        end_time = time.time()
+        print(f"{func.__name__} took {end_time - start_time:.2f} seconds to execute")
+        return result
+
+    return wrapper
+
+
 def check_user_in_db(func):
     async def wrapper(client, message):
         global user_list
@@ -122,6 +135,7 @@ def check_joined(func):
 
 
 @app.on_message(filters.text & filters.regex("^/start$"))
+@timing_decorator
 @check_joined
 @check_user_in_db
 async def start(client, message):
@@ -131,6 +145,7 @@ async def start(client, message):
 
 
 @app.on_message(filters.text & filters.regex("^/start get_*"))
+@timing_decorator
 @check_joined
 @check_user_in_db
 async def get_file(client, message):
