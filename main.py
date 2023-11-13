@@ -157,8 +157,8 @@ async def get_file(client, message):
 
     elif file.password is None or file.owner_id == message.from_user.id:
         file = await send_file(app, client, message, file, db)
-        await asyncio.sleep(30)
-        await app.delete_messages(message.chat.id, file.id)
+        # await asyncio.sleep(30)
+        # await app.delete_messages(message.chat.id, file.id)
     else:
         conversation_object[message.from_user.id] = file
         conversation_state[message.from_user.id] = State.USER_SEND_PASSWORD_FOR_GET_FILE
@@ -463,8 +463,8 @@ async def get_file_has_password(client, message):
         await app.send_message(message.from_user.id, start_text.format(sender.first_name), reply_markup=start_btn)
         conversation_state[message.from_user.id] = None
         conversation_object[message.from_user.id] = None
-        await asyncio.sleep(30)
-        await app.delete_messages(message.chat.id, file.id)
+        # await asyncio.sleep(30)
+        # await app.delete_messages(message.chat.id, file.id)
 
     else:
         await app.send_message(message.from_user.id, "❌ پسورد اشتباه است !", reply_markup=back_btn)
