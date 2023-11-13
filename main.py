@@ -4,6 +4,7 @@ import re
 from enum import Enum, auto
 
 import uvloop
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from celery import Celery
 from decouple import config
 from pyrogram import Client, filters
@@ -19,7 +20,6 @@ from services import create_user_from_db, create_file_from_db, delete_file_from_
 from text import start_text, get_file_text, tracing_file_text, delete_file_text, account_text, admin_panel_text, \
     join_panel_text, channel_list_text, channel_add_text, need_join_text
 from utils import generate_random_text, send_file
-from tasks import delete_video
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s ',
                     level=logging.INFO)
@@ -49,6 +49,7 @@ app.set_parse_mode(enums.ParseMode.MARKDOWN)
 
 conversation_state = {}
 conversation_object = {}
+list_video = []
 
 user_list = userid_list(db)
 channel_join_list = None
@@ -125,6 +126,14 @@ def check_joined(func):
     return wrapper
 
 
+async def job():
+    if list_video:
+        for i in list_video:
+            chat_id = i.get('chat_id')
+            message_id = i.get('message_id')
+            await app.delete_messages(chat_id, message_id)
+
+
 @app.on_message(filters.text & filters.regex("^/start$"))
 @check_joined
 @check_user_in_db
@@ -146,9 +155,6 @@ async def get_file(client, message):
 
     elif file.password is None or file.owner_id == message.from_user.id:
         file = await send_file(app, client, message, file, db)
-        delete_video.apply_async((app, message.chat.id, message.id), countdown=30)
-        # await asyncio.sleep(30)
-        # await app.delete_messages(message.chat.id, file.id)
     else:
         conversation_object[message.from_user.id] = file
         conversation_state[message.from_user.id] = State.USER_SEND_PASSWORD_FOR_GET_FILE
@@ -453,10 +459,6 @@ async def get_file_has_password(client, message):
         await app.send_message(message.from_user.id, start_text.format(sender.first_name), reply_markup=start_btn)
         conversation_state[message.from_user.id] = None
         conversation_object[message.from_user.id] = None
-        delete_video.apply_async((app, message.chat.id, message.id), countdown=30)
-
-        # await asyncio.sleep(30)
-        # await app.delete_messages(message.chat.id, file.id)
 
     else:
         await app.send_message(message.from_user.id, "❌ پسورد اشتباه است !", reply_markup=back_btn)
@@ -610,4 +612,8 @@ async def default_none(client, message):
                            reply_markup=admin_btn)
 
 
+scheduler = AsyncIOScheduler()
+scheduler.add_job(job, "interval", seconds=3)
+
+scheduler.start()
 app.run()
