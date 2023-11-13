@@ -273,7 +273,8 @@ async def back(client, message):
     else:
         conversation_state[message.from_user.id] = None
         conversation_object[message.from_user.id] = None
-        await app.send_message(message.from_user.id, start_text, reply_markup=start_btn)
+        await app.send_message(message.from_user.id, start_text.format(message.from_user.first_name),
+                               reply_markup=start_btn)
 
 
 @app.on_message(filters.text & filters.regex("🗳 آپلود فایل"))
@@ -459,7 +460,8 @@ async def get_file_has_password(client, message):
         file = await send_file(app, client, message, file, db)
         list_video.append({"chat_id": message.chat.id, "message_id": file.id})
         sender = message.from_user
-        await app.send_message(message.from_user.id, start_text.format(sender.first_name), reply_markup=start_btn)
+        await app.send_message(message.from_user.id, start_text.format(message.from_user.first_name),
+                               reply_markup=start_btn)
         conversation_state[message.from_user.id] = None
         conversation_object[message.from_user.id] = None
 
