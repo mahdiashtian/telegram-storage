@@ -4,6 +4,7 @@ import logging
 import re
 from enum import Enum, auto
 
+import uvloop
 from decouple import config
 from pyrogram import Client, filters
 from pyrogram import enums
@@ -30,6 +31,8 @@ api_id = config("API_ID")
 api_hash = config("API_HASH")
 
 bot_token = config("BOT_TOKEN")
+
+uvloop.install()
 
 app = Client(
     'mahdi',
