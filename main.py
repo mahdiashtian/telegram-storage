@@ -143,10 +143,11 @@ async def get_file(client, message):
 
     elif file.password is None or file.owner_id == message.from_user.id:
         file = await send_file(app, client, message, file, db)
-        await asyncio.sleep(30)
-        await app.delete_messages(message.chat.id, file.id)
         stop = time.time()
         print(f"get_file", stop - start)
+        await asyncio.sleep(30)
+        await app.delete_messages(message.chat.id, file.id)
+
     else:
         conversation_object[message.from_user.id] = file
         conversation_state[message.from_user.id] = State.USER_SEND_PASSWORD_FOR_GET_FILE
