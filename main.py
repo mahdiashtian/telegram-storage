@@ -69,20 +69,8 @@ class State(Enum):
     USER_REMOVE_CHANNEL = auto()
 
 
-def timer(func):
-    async def wrapper(*args, **kwargs):
-
-        result = await func(*args, **kwargs)
-        end = time.time()
-        print(f"{func.__name__} took {end - start:.4f} sec")
-        return result
-
-    return wrapper
-
-
 def check_user_in_db(func):
     async def wrapper(client, message):
-        start = time.time()
         global user_list
         if message.from_user.id not in user_list:
             user = {
@@ -91,8 +79,6 @@ def check_user_in_db(func):
             create_user_from_db(db, user)
 
             user_list = userid_list(db)
-        end = time.time()
-        print(f"check_user_in_db took {end - start:.4f} sec")
         await func(client, message)
 
     return wrapper
@@ -100,7 +86,6 @@ def check_user_in_db(func):
 
 def check_joined(func):
     async def wrapper(client, message):
-        start = time.time()
         global channel_join_list
         if not channel_join_list:
             channel_join_list = await channel_list(db, app)
@@ -119,8 +104,6 @@ def check_joined(func):
                         need_join[key] = {"title": title, "link": link}
                 except:
                     need_join[key] = {"title": title, "link": link}
-        end = time.time()
-        print(f"check_joined took {end - start:.4f} sec")
         if need_join:
             for key, value in need_join.items():
                 title = value.get('title')
@@ -150,9 +133,11 @@ async def start(client, message):
 @check_joined
 @check_user_in_db
 async def get_file(client, message):
+    start = time.time()
     conversation_state[message.from_user.id] = None
     code = message.text.replace("/start get_", "")
     file = read_file_from_db(db, code)
+
     if file is None:
         await app.send_message(message.from_user.id, "❌ فایل یافت نشد !")
 
@@ -160,6 +145,8 @@ async def get_file(client, message):
         file = await send_file(app, client, message, file, db)
         await asyncio.sleep(30)
         await app.delete_messages(message.chat.id, file.id)
+        stop = time.time()
+        print(f"get_file", stop - start)
     else:
         conversation_object[message.from_user.id] = file
         conversation_state[message.from_user.id] = State.USER_SEND_PASSWORD_FOR_GET_FILE
