@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import re
+import time
 from enum import Enum, auto
 
 import uvloop
@@ -71,6 +72,18 @@ class State(Enum):
     USER_REMOVE_CHANNEL = auto()
 
 
+def timer(func):
+    async def wrapper(*args, **kwargs):
+        start = time.time()
+        result = await func(*args, **kwargs)
+        end = time.time()
+        print(f"{func.__name__} took {end - start:.4f} sec")
+        return result
+
+    return wrapper
+
+
+@timer
 def check_user_in_db(func):
     async def wrapper(client, message):
         global user_list
@@ -86,6 +99,7 @@ def check_user_in_db(func):
     return wrapper
 
 
+@timer
 def check_joined(func):
     async def wrapper(client, message):
         global channel_join_list
