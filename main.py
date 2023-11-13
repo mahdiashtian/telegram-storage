@@ -32,7 +32,6 @@ api_hash = config("API_HASH")
 
 bot_token = config("BOT_TOKEN")
 
-
 app = Client(
     'mahdi',
     api_id,
@@ -72,18 +71,18 @@ class State(Enum):
 
 def timer(func):
     async def wrapper(*args, **kwargs):
-        start = time.time()
+
         result = await func(*args, **kwargs)
         end = time.time()
-        print(f"{result.__name__} took {end - start:.4f} sec")
+        print(f"{func.__name__} took {end - start:.4f} sec")
         return result
 
     return wrapper
 
 
-@timer
 def check_user_in_db(func):
     async def wrapper(client, message):
+        start = time.time()
         global user_list
         if message.from_user.id not in user_list:
             user = {
@@ -92,14 +91,16 @@ def check_user_in_db(func):
             create_user_from_db(db, user)
 
             user_list = userid_list(db)
+        end = time.time()
+        print(f"check_user_in_db took {end - start:.4f} sec")
         await func(client, message)
 
     return wrapper
 
 
-@timer
 def check_joined(func):
     async def wrapper(client, message):
+        start = time.time()
         global channel_join_list
         if not channel_join_list:
             channel_join_list = await channel_list(db, app)
@@ -118,6 +119,8 @@ def check_joined(func):
                         need_join[key] = {"title": title, "link": link}
                 except:
                     need_join[key] = {"title": title, "link": link}
+        end = time.time()
+        print(f"check_joined took {end - start:.4f} sec")
         if need_join:
             for key, value in need_join.items():
                 title = value.get('title')
