@@ -1,11 +1,10 @@
 # -*- coding:utf-8 -*-
-import asyncio
 import logging
 import re
-import time
 from enum import Enum, auto
 
 import uvloop
+from celery import Celery
 from decouple import config
 from pyrogram import Client, filters
 from pyrogram import enums
@@ -20,6 +19,7 @@ from services import create_user_from_db, create_file_from_db, delete_file_from_
 from text import start_text, get_file_text, tracing_file_text, delete_file_text, account_text, admin_panel_text, \
     join_panel_text, channel_list_text, channel_add_text, need_join_text
 from utils import generate_random_text, send_file
+from tasks import delete_video
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s ',
                     level=logging.INFO)
@@ -40,6 +40,8 @@ app = Client(
     api_id,
     api_hash,
     bot_token=bot_token)
+
+celery = Celery('tasks', broker='redis://localhost:6379/0')
 
 db = SessionLocal()
 
@@ -70,17 +72,6 @@ class State(Enum):
     USER_JOIN_CHANNEL_PANEL = auto()
     USER_ADD_CHANNEL = auto()
     USER_REMOVE_CHANNEL = auto()
-
-
-def timing_decorator(func):
-    async def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = await func(*args, **kwargs)
-        end_time = time.time()
-        print(f"{func.__name__} took {end_time - start_time:.2f} seconds to execute")
-        return result
-
-    return wrapper
 
 
 def check_user_in_db(func):
@@ -135,7 +126,6 @@ def check_joined(func):
 
 
 @app.on_message(filters.text & filters.regex("^/start$"))
-@timing_decorator
 @check_joined
 @check_user_in_db
 async def start(client, message):
@@ -145,7 +135,6 @@ async def start(client, message):
 
 
 @app.on_message(filters.text & filters.regex("^/start get_*"))
-@timing_decorator
 @check_joined
 @check_user_in_db
 async def get_file(client, message):
@@ -157,6 +146,7 @@ async def get_file(client, message):
 
     elif file.password is None or file.owner_id == message.from_user.id:
         file = await send_file(app, client, message, file, db)
+        delete_video.apply_async((app, message.chat.id, message.message_id), countdown=30)
         # await asyncio.sleep(30)
         # await app.delete_messages(message.chat.id, file.id)
     else:
@@ -463,6 +453,8 @@ async def get_file_has_password(client, message):
         await app.send_message(message.from_user.id, start_text.format(sender.first_name), reply_markup=start_btn)
         conversation_state[message.from_user.id] = None
         conversation_object[message.from_user.id] = None
+        delete_video.apply_async((app, message.chat.id, message.message_id), countdown=30)
+
         # await asyncio.sleep(30)
         # await app.delete_messages(message.chat.id, file.id)
 
