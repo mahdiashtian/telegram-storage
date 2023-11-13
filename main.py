@@ -75,7 +75,7 @@ def timer(func):
         start = time.time()
         result = await func(*args, **kwargs)
         end = time.time()
-        print(f"{func.__name__} took {end - start:.4f} sec")
+        print(f"{result.__name__} took {end - start:.4f} sec")
         return result
 
     return wrapper
