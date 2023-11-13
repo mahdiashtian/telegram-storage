@@ -616,7 +616,7 @@ async def default_none(client, message):
 
 
 scheduler = AsyncIOScheduler()
-scheduler.add_job(job, "interval", seconds=10)
+scheduler.add_job(job, "interval", seconds=30)
 
 scheduler.start()
 app.run()
