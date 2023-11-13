@@ -2,7 +2,6 @@
 import asyncio
 import logging
 import re
-import time
 from enum import Enum, auto
 
 from decouple import config
@@ -133,7 +132,6 @@ async def start(client, message):
 @check_joined
 @check_user_in_db
 async def get_file(client, message):
-    start = time.time()
     conversation_state[message.from_user.id] = None
     code = message.text.replace("/start get_", "")
     file = read_file_from_db(db, code)
@@ -143,8 +141,6 @@ async def get_file(client, message):
 
     elif file.password is None or file.owner_id == message.from_user.id:
         file = await send_file(app, client, message, file, db)
-        stop = time.time()
-        print(f"get_file", stop - start)
         await asyncio.sleep(30)
         await app.delete_messages(message.chat.id, file.id)
 
