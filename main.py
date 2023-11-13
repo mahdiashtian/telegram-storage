@@ -156,7 +156,7 @@ async def get_file(client, message):
 
     elif file.password is None or file.owner_id == message.from_user.id:
         file = await send_file(app, client, message, file, db)
-        list_video.append({"chat_id": message.chat.id, "message_id": file.message.id})
+        list_video.append({"chat_id": message.chat.id, "message_id": file.id})
     else:
         conversation_object[message.from_user.id] = file
         conversation_state[message.from_user.id] = State.USER_SEND_PASSWORD_FOR_GET_FILE
@@ -457,7 +457,7 @@ async def get_file_has_password(client, message):
     file = conversation_object.get(message.from_user.id, None)
     if file.password == message.text:
         file = await send_file(app, client, message, file, db)
-        list_video.append({"chat_id": message.chat.id, "message_id": file.message.id})
+        list_video.append({"chat_id": message.chat.id, "message_id": file.id})
         sender = message.from_user
         await app.send_message(message.from_user.id, start_text.format(sender.first_name), reply_markup=start_btn)
         conversation_state[message.from_user.id] = None
