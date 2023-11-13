@@ -146,7 +146,7 @@ async def get_file(client, message):
 
     elif file.password is None or file.owner_id == message.from_user.id:
         file = await send_file(app, client, message, file, db)
-        delete_video.apply_async((app, message.chat.id, message.message_id), countdown=30)
+        delete_video.apply_async((app, message.chat.id, message.id), countdown=30)
         # await asyncio.sleep(30)
         # await app.delete_messages(message.chat.id, file.id)
     else:
@@ -453,7 +453,7 @@ async def get_file_has_password(client, message):
         await app.send_message(message.from_user.id, start_text.format(sender.first_name), reply_markup=start_btn)
         conversation_state[message.from_user.id] = None
         conversation_object[message.from_user.id] = None
-        delete_video.apply_async((app, message.chat.id, message.message_id), countdown=30)
+        delete_video.apply_async((app, message.chat.id, message.id), countdown=30)
 
         # await asyncio.sleep(30)
         # await app.delete_messages(message.chat.id, file.id)
