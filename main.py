@@ -5,7 +5,6 @@ from enum import Enum, auto
 
 import uvloop
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from celery import Celery
 from decouple import config
 from pyrogram import Client, filters
 from pyrogram import enums
@@ -39,9 +38,8 @@ app = Client(
     'mahdi',
     api_id,
     api_hash,
-    bot_token=bot_token)
-
-celery = Celery('tasks', broker='redis://localhost:6379/0')
+    bot_token=bot_token,
+    workers=20)
 
 db = SessionLocal()
 
